@@ -1,0 +1,131 @@
+---
+title: "Analysis"
+output: html_document
+date: "2023-06-03"
+---
+
+Read in the file
+```{r setup, include=FALSE}
+library(DESeq2) #Normalizing counts
+
+library(ggbeeswarm) #Beeswarm plot
+library(gplots) #Heatmap plot
+library(ggplot2)
+
+library(RColorBrewer) #Color palette change
+```
+
+Read in  file
+```{r setup, include=FALSE}
+rawCounts = read.table("GSE218338_IGF1_salmon_counts.txt", header = TRUE, row.names = 1, sep = '\t')
+```
+
+Formatting data
+```{r}
+#Formatting the sample names
+colnames(rawCounts) <- c("IGF1_Experiment_Sample1_Treated", 
+                         "IGF1_Experiment_Sample2_Treated", 
+                         "IGF1_Experiment_Sample3_Treated", 
+                         "IGF1_Experiment_Sample4_Treated",
+                         "IGF1_Experiment_Sample5_Treated",
+                         "IGF1_Experiment_Sample1_Control",
+                         "IGF1_Experiment_Sample2_Control",
+                         "IGF1_Experiment_Sample3_Control",
+                         "IGF1_Experiment_Sample4_Control","IGF1_Experiment_Sample5_Control")
+
+#Construct new meta data dataframe for DESeq
+metaData <- data.frame(
+  sampleName = c("IGF1_Experiment_Sample1_Treated", "IGF1_Experiment_Sample2_Treated", "IGF1_Experiment_Sample3_Treated", "IGF1_Experiment_Sample4_Treated","IGF1_Experiment_Sample5_Treated",
+                         "IGF1_Experiment_Sample1_Control",
+                         "IGF1_Experiment_Sample2_Control",
+                         "IGF1_Experiment_Sample3_Control",
+                         "IGF1_Experiment_Sample4_Control","IGF1_Experiment_Sample5_Control"),
+  treatment = c("treated", "treated", "treated", "treated", "treated",
+                "control", "control", "control", "control", "control") )
+
+```
+
+DESeq
+```{r}
+
+#Read in 
+myDESeq <- DESeqDataSetFromMatrix(countData = rawCounts, colData = metaData, design = ~ treatment)
+
+myDESeq = DESeq(myDESeq) #Convert to DESeq object
+
+MyDEResult = results(myDESeq)
+
+#Normalized counts (Takes in DESeq Object)
+normalizedCounts <- as.data.frame(counts(myDESeq, normalized = TRUE))
+```
+
+Commands
+```{r}
+    # View(MyDEResult)
+```
+
+Gene Statistics
+```{r}
+GeneStats = as.data.frame(MyDEResult@listData)
+rownames(GeneStats) <-rownames(normalizedCounts)
+
+```
+
+
+Heatmap Preprocessing
+```{r}
+#Sort genes by adj. p-values
+GeneStatsSorted = GeneStats[ order(GeneStats[,6]) ,  ] #Create new matrix where genes sorted by adj. p-values
+
+#Get a matrix of a select genes only (to make a heatmap out of)
+subMatrix = normalizedCounts[row.names(GeneStatsSorted[1:10,]),] #Top 10 significant genes
+
+
+names = c("Control 1", "Control 2", "Control 3","Control 4","Control 5", "Treatment 1","Treatment 2","Treatment 3","Treatment 4","Treatment 5")
+
+```
+Heatmap Generation
+```{r}
+heatmap.2(as.matrix(subMatrix), trace = "none", col = brewer.pal(5, "Reds"), main = "Heatmap of Top 10 \nCorrelated Genes", Colv = FALSE, margins=c(8,14), labCol = names, scale = "row")
+```
+Subsetting Data for Beeswarms
+```{r}
+
+#Probably could've made this a function...
+
+#Gene you want to look at
+specificGene = "ENSMUSG00000064368"
+
+sNormalized <- data.frame(
+  Sample = c("Sample 1: Treated", "Sample 2: Treated", "Sample 3: Treated", "Sample 4: Treated", "Sample 5: Treated", "Sample 6: Control", "Sample 7: Control", "Sample 8: Control", "Sample 9: Control", "Sample 10: Control"),
+  Treatment = c("Treatment","Treatment","Treatment","Treatment","Treatment","Control","Control","Control","Control","Control"),
+  specificGene = c("filler","filler","filler","filler","filler","filler","filler","filler","filler","filler")
+)
+
+#Turn row into a vector
+normalizedCountsTransposedVector <- as.vector(t(normalizedCounts[specificGene,]))
+#Assign all the normalized counts to each sample
+sNormalized$specificGene <- normalizedCountsTransposedVector
+
+#Renaming the column name
+names(sNormalized)[names(sNormalized) == "specificGene"] <- specificGene
+
+```
+
+
+
+
+
+Beeswarm Time
+```{r}
+ggplot(sNormalized, aes(x=Treatment, y=get(specificGene) ) ) + geom_violin()+ geom_beeswarm(dodge.width = .5) + labs(y = specificGene) + ggtitle("Beeswarm and Violin Plot of Gene") + theme(plot.title = element_text(hjust = 0.5, face="bold", size = 17))
+
+#Gene 1: ENSMUSG00000061615
+#ggplot(sNormalized, aes(x=Treatment, y=get(specificGene) ) ) + geom_violin()+ geom_beeswarm(dodge.width = .5) + labs(y = "ENSMUSG00000061615 Normalized Counts") + ggtitle("Expression Levels of ENSMUSG00000061615\nBetween Control and Treatment Mice") + theme(plot.title = element_text(hjust = 0.5, face="bold", size = 17))
+
+#Gene 2: ENSMUSG00000064368
+# ggplot(sNormalized, aes(x=Treatment, y=get(specificGene) ) ) + geom_violin()+ geom_beeswarm(dodge.width = .5) + labs(y = "ENSMUSG00000064368 Counts Per Million") + ggtitle("Expression Levels of ENSMUSG00000064368\nBetween Control and Treatment Mice") + theme(plot.title = element_text(hjust = 0.5, face="bold", size = 17))
+
+
+
+```
