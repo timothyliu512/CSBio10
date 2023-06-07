@@ -1,0 +1,2 @@
+>TestSequence3
+atgaaattaatgaaataacat
