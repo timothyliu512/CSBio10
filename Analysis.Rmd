@@ -126,6 +126,49 @@ ggplot(sNormalized, aes(x=Treatment, y=get(specificGene) ) ) + geom_violin()+ ge
 #Gene 2: ENSMUSG00000064368
 # ggplot(sNormalized, aes(x=Treatment, y=get(specificGene) ) ) + geom_violin()+ geom_beeswarm(dodge.width = .5) + labs(y = "ENSMUSG00000064368 Counts Per Million") + ggtitle("Expression Levels of ENSMUSG00000064368\nBetween Control and Treatment Mice") + theme(plot.title = element_text(hjust = 0.5, face="bold", size = 17))
 
+```
 
+
+
+PCA Plot
+```{r}
+
+#Get Principal Components
+PCA_Output = prcomp(as.matrix(t(normalizedCounts)),scale=TRUE)
+
+#Data Frame of First 2 Principal Components
+PCA_df <- data.frame(Sample = row.names(PCA_Output$x), PC1 = PCA_Output$x[,1], PC2 = PCA_Output$x[,2])
+
+#Indicate whether treatment or control (for PCA graph coloring)
+PCA_df$TreatmentType = c("Treatment","Treatment","Treatment","Treatment","Treatment","Control","Control","Control","Control","Control")
+
+#Plot PCA
+ggplot(PCA_df, aes(x = PC1, y = PC2, label = Sample, color = TreatmentType)) + geom_point(size=2.5) + xlab(paste("Principal Component 1 - ", round(summary(PCA_Output)$importance[2,1]*100, digits = 1), "%", sep = "")) + ylab(paste("Principal Component 2 - ", round(summary(PCA_Output)$importance[2,2]*100, digits = 1), "%", sep = "")) + ggtitle("PCA Plot Comparing Gene Expression\nBetween Treatment and Control Groups") + theme(plot.title=element_text(face="bold", size=18))+ scale_color_manual(values = c("Treatment" = "#73BBC9", "Control" = "#B31312")) + labs(color = "Treatment Type")
+
+
+```
+
+Scatterplot (Boring...)
+```{r}
+#Merge control and treatment
+ControlVsTreatment <- data.frame(
+  Control = rowMeans(normalizedCounts[, 1:5]),
+  Treatment = rowMeans(normalizedCounts[, 6:10])
+)
+
+
+#Fit linear regression
+fit <- lm(ControlVsTreatment$Treatment ~ ControlVsTreatment$Control)
+
+#Scatter plot
+plot(
+  
+  (ControlVsTreatment$Control)     , 
+  (ControlVsTreatment$Treatment)    ,
+     main = "Scatterplot of Sample Controls vs Sample Treatments", xlab = "Experiment Sample Control", ylab = "Experiment Sample Treatment"
+     )
+
+#Overlay regression line
+abline(fit, col = "red")
 
 ```
